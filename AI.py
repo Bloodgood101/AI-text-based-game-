@@ -1,9 +1,32 @@
-import openai
-from openai import OpenAI
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
 
 knowledge_base = []
 prompts = []
 inventory = []
+
+MODELS = {
+    "small": "gpt2",
+    "medium": "gpt2-medium",
+    "large": "gpt2-large",
+    "xl": "gpt2-xl"
+}
+
+def load_model(size="small"):
+    print("Getting LLM...")
+    if size not in MODELS:
+        raise ValueError("Size not found")
+    
+    model_name = MODELS[size]
+    tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+    model = GPT2LMHeadModel.from_pretrained(model_name)
+
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    print("LLM grabbed...")
+    return tokenizer, model 
+
 
 class Character:
     def __init__(self, name, attributes, intro):
@@ -23,18 +46,13 @@ def add_character_data(character_data):
     )
     print(f"Added to knowledge base: {character}")
 
-def generate_response(user_input):
-    openai.api_key = "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"
-    response = openai.ChatCompletion.create(
-        model="gpt-0.28",
-        input=user_input
-    )
-    return response.output_text
-
 """Import tensorflow for machine learning, need to learn basic storytelling and prompt understanding.
 Use attributes to dictate character actions, attributes can be decreased and increased based on specific actions.
 Story must finish within 200-500 prompts. Items? Other characters? No response should be longer than 200 words. 
 Machine intelligence?"""
+
+if __name__ == "__main__":
+    load_model()
 
 
 
