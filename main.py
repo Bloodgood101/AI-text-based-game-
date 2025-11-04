@@ -1,7 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+import json
+import datetime
+import os
 
-import AI
+from AI import Narrator
 
 
 def create_main_window():
@@ -26,7 +29,24 @@ def create_main_window():
     )
     open_button.pack(pady=20)
 
+    #check model
+    model_status = check_model_status()
+    status_label = ttk.Label(
+        main_frame,
+        text=model_status,
+        font=('Helvetica', 10),
+        foreground='green' if 'Ready' in model_status else 'red'
+    )
+    status_label.pack(pady=10)
+
     root.mainloop()
+
+def check_model_status():
+    model_path="./models/llama-2-7b-chat.Q4_0.gguf"
+    if os.path.exists(model_path):
+        return "AI Model: Ready"
+    else:
+        return "AI Model: Not found"
 
 def center_window(window, width, height):
     screen_width = window.winfo_screenwidth()
@@ -205,8 +225,12 @@ def process_prompt(prompt_text, character_data, window):
 
     character_data["story_prompt"] = cleaned_prompt
 
-    # Store in knowledge base
-    AI.add_character_data(character_data)
+    log_data = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "character_data": character_data
+    }
+    with open("character_creation_log.json", "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_data, indent=2) + "\n")
 
     print("\nCharacter data stored:")
     print(f"Name: {character_data['name']}")

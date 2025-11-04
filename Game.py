@@ -1,4 +1,4 @@
-import AI
+from AI import Narrator
 
 """This is where the game is played, and saved. Implements the AI class, but only uses the main class to 
 transition to the game."""
@@ -39,6 +39,10 @@ class ChatApplication:
             f"We're beginning your story about: {character_data['story_prompt'][:500]}..."
         )
         self.display_narrator_response(welcome_msg)
+
+        # Initialize narrator
+        self.narrator = Narrator()
+        self.narrator.add_character_data(character_data)
 
     def create_response_section(self):
         # Response frame
@@ -119,15 +123,7 @@ class ChatApplication:
         self.response_area.see(tk.END)
 
         # Process the input and generate narrator response
-        self.generate_response(user_text)
-
-    def generate_response(self, user_input):
-        # This is where you would connect to your AI/Narrator service
-        # For demonstration, we'll create simple responses
-
-        # Simulate processing delay
-        self.root.after(1000, lambda: self.display_narrator_response(AI.generate_response(user_input)))
-
+        self.display_narrator_response(self.narrator.generate_response(user_text))
 """
 if __name__ == "__main__":
     root = tk.Tk()
