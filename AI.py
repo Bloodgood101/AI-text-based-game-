@@ -1,10 +1,21 @@
+import tempfile
+import threading
+
 from llama_cpp import Llama
 import json
 import datetime
 import os
 
+from gtts import gTTS
+import pygame
+import tempfile
+
 class Narrator:
     def __init__(self):
+        pygame.mixer.init()
+        self.current_audio_file = None
+
+        #Above is for text to speech
         self.intro = None
         self.attributes = None
         self.name = None
@@ -20,6 +31,47 @@ class Narrator:
         self.story_history = []
         self.log_file="gameLog.txt"
         self._init_logging()
+
+    def speak(self, text):
+        def _speakthread():
+            try:
+                clean_text = self._clean_text_for_tts(text)
+                tts = gTTS(text=clean_text, lang="zh", slow=False)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+                    self.current_audio_file = temp_audio.name
+                    tts.save(temp_audio.name)
+
+                pygame.mixer.music.load(self.current_audio_file)
+                pygame.mixer.music.play()
+
+                while pygame.mixer.music.get_busy():
+                    pygame.time.wait(100)
+
+                if self.current_audio_file and os.path.exists(self.current_audio_file):
+                    os.unlink(self.current_audio_file)
+                    self.current_audio_file = None
+
+            except Exception as e:
+                print(f"TTS error: {e}")
+
+        tts_thread = threading.Thread(target=_speakthread())
+        tts_thread.daemon = True
+        tts_thread.start()
+
+    def _clean_text_for_tts(self, text):
+        import re
+        clean_text = re.sub(r'[*_`#]', '', text)
+        clean_text = re.sub(r'\[.*?\[\(.*?\)', '', text)
+        clean_text = re.sub(r'\n+', '. ', text)
+        clean_text = re.sub(r'\s+', ' ', clean_text)
+        return clean_text.strip()
+
+    def stop_speaking(self):
+        if pygame.mixer.music.get_busy():
+            pygame.mixer.music.stop()
+        if self.current_audio_file and os.path.exists(self.current_audio_file):
+            os.unlink(self.current_audio_file)
+            self.current_audio_file=None
     
     def _init_logging(self):
         with open(self.log_file, 'a', encoding='utf-8') as f:
@@ -34,7 +86,15 @@ class Narrator:
             f.write("-" * 80 + "\n")
 
     def create_system_prompt(self):
-        return """"""
+        return """
+        You are the narrator for a text-based adventure game. From the user data and intro you have stored you must
+        design an adventure for the user, based on all gathered facts, stats and the first five user responses. You can 
+        use the {recent_context} to understand where the direction of where the story is going. Although the idea of 
+        this program is that the user has full creative control, you must push them to stay on the story's trail so the
+        story can be completed. Use the character's attributes to influence story outcomes and outcomes of actions. 
+        Be creative with descriptions of everything, you are a narrator and you are painting the story, and progress the
+        story through primarily player choices and actions. 
+        """
 
     def generate_response(self, prompt):
         # Build context from recent history
