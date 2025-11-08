@@ -93,7 +93,7 @@ def open_character_custom():
     name_entry.focus()  # Set focus to name field by default
 
     # Define attribute names in order
-    attributes_order = ["Strength", "Luck", "Charisma", "Dexterity", "Intelligence"]
+    attributes_order = ["strength", "luck", "charisma", "dexterity", "intelligence"]
 
     # Create multiple sliders with their value displays
     slider_settings = [

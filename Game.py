@@ -1,9 +1,10 @@
+import random
+
 from AI import Narrator
 import tkinter as tk
 from tkinter import scrolledtext
 import threading
 import time
-
 
 class ChatApplication:
     def __init__(self, root, character_data):
@@ -13,7 +14,7 @@ class ChatApplication:
         self.root.geometry("600x500")
         self.root.resizable(True, True)
 
-        self.tts_enabled = tk.BooleanVar(value=True)  # for text to speech
+        self.tts_enabled = tk.BooleanVar(value=False)  # for text to speech
         self.is_typing = False  # Track if narrator is currently "typing"
         self.current_typing_thread = None  # Track current typing thread
         self.typing_position = None  # Track where typing starts
@@ -26,6 +27,8 @@ class ChatApplication:
         # Create and configure fonts
         self.response_font = ("Arial", 11)
         self.input_font = ("Arial", 10)
+
+        self.fight_counter = 0 #For increasing stats
 
         # Create narrator response section
         self.create_response_section()
@@ -228,12 +231,21 @@ class ChatApplication:
 
     def _generate_and_display_response(self, user_text):
         """Generate response and display it with typewriter effect"""
+        attributes_list = ["dexterity", "strength", "luck", "charisma", "intelligence"]
         try:
-            # Generate narrator response
-            response = self.narrator.generate_response(user_text)
+            if "stats" in user_text.lower() or "attributes" in user_text.lower():
+                response = self.get_stats()
+                self.root.after(0, lambda: self.display_narrator_response(response))
+            elif any(attribute in user_text.lower() for attribute in attributes_list):
+                response = self.handle_attribute_battle(user_text, attributes_list)
+                self.root.after(0, lambda: self.display_narrator_response(response))
+            #Introduce a 'convene+character' option that allows the user to talk to specific characters using dialogpt.
+            else:
+                # Generate narrator response
+                response = self.narrator.generate_response(user_text)
 
-            # Display with typewriter effect
-            self.root.after(0, lambda: self.display_narrator_response(response))
+                # Display with typewriter effect
+                self.root.after(0, lambda: self.display_narrator_response(response))
 
             # Start TTS if enabled
             if self.tts_enabled.get():
@@ -247,6 +259,56 @@ class ChatApplication:
         finally:
             # Re-enable input
             self.root.after(0, self._enable_input)
+
+    def get_stats(self):
+        stats = [f"Character: {self.character_data['name']}", "Attributes:"]
+        for attribute, value in self.character_data['attributes'].items():
+            stats.append(f"    {attribute}:{value}")
+        return "\n".join(stats)
+
+    def handle_attribute_battle(self, user_text, attributes_list):
+        self.fight_counter += 1
+        print(self.fight_counter)
+        print("attribute battle triggered...")
+        user_text = user_text.lower()
+        mentioned_attributes = []
+
+        for attribute in attributes_list:
+            if attribute in user_text:
+                mentioned_attributes.append(attribute)
+        character_attributes = self.character_data['attributes']
+        #For levelling up mechanic
+        if self.fight_counter % random.randint(3,7) == 0:
+            attribute_upgrade = random.choice(attributes_list)
+            value = character_attributes.get(attribute_upgrade,0)
+            self.character_data[attribute_upgrade] = value+1
+
+            level_up = f"Your {attribute_upgrade} has increased by 1 through sheer prowess..."
+        else:
+            level_up = ""
+
+        if mentioned_attributes:
+            response = [f"You have decided to use {mentioned_attributes} to solve this problem...\n"]
+            score = 0
+            for attribute in mentioned_attributes:
+                attribute_value = character_attributes.get(attribute, 0)
+                print(f"Your attribute score is: {attribute_value}")
+                score += attribute_value
+            enemy_score = 0
+            for i in range(len(mentioned_attributes)):
+                enemy_score += random.randint(1, 10)
+                print(f"Enemy score is: {enemy_score}")
+
+            if score >= enemy_score:
+                response.append(f"Your {mentioned_attributes} outclassed the enemy!\n")
+                response.append(f"\n{score} > {enemy_score}\n")
+            else:
+                response.append(f"Your {mentioned_attributes} can not match up against this monster...\n")
+                response.append(f"\n{score} < {enemy_score}\n")
+            if level_up:
+                response.append(level_up)
+            return response
+
 
     def _enable_input(self):
         """Re-enable user input after response is complete"""

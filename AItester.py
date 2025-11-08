@@ -1,6 +1,5 @@
 import json
 import re
-from zipfile import error
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM

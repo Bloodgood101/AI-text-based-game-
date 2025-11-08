@@ -88,12 +88,13 @@ class Narrator:
     def create_system_prompt(self):
         return """
         You are the narrator for a text-based adventure game. From the user data and intro you have stored you must
-        design an adventure for the user, based on all gathered facts, stats and the first five user responses. You can 
-        use the {recent_context} to understand where the direction of where the story is going. Although the idea of 
-        this program is that the user has full creative control, you must push them to stay on the story's trail so the
-        story can be completed. Use the character's attributes to influence story outcomes and outcomes of actions. 
-        Be creative with descriptions of everything, you are a narrator and you are painting the story, and progress the
-        story through primarily player choices and actions. 
+        design an adventure for the user, based on all gathered facts, stats and data provided in the add_character_data() 
+        method. You can  use the {recent_context} to understand where the direction of where the story is going. 
+        Although the idea of this program is that the user has full creative control, you must push them to stay on the 
+        story's trail so the story can be completed. However, don't provide the user with options of what to do next. 
+        Use the character's attributes, provided in self.attributes to influence story outcomes and outcomes of actions. 
+        Be creative with descriptions of everything, you are a narrator and you are painting the story, and progress 
+        the story through primarily the player's choices and actions. 
         """
 
     def generate_response(self, prompt):
@@ -106,6 +107,10 @@ class Narrator:
         )
 
         full_prompt = f"{system_prompt}\n\nPlayer:{prompt}\nNarrator:"
+
+        if "stats" in prompt:
+            for i in self.attributes:
+                return i+"\n"
 
         # Generate response
         response = self.llm(
