@@ -1,34 +1,51 @@
 import random
-
-from AI import Narrator
 import tkinter as tk
 from tkinter import scrolledtext
 import threading
 import time
 
+from AI import Narrator
+
+
 class ChatApplication:
     def __init__(self, root, character_data):
         self.root = root
         self.character_data = character_data
-        self.root.title("Narrator Chat")
-        self.root.geometry("600x500")
-        self.root.resizable(True, True)
 
-        self.tts_enabled = tk.BooleanVar(value=False)  # for text to speech
-        self.is_typing = False  # Track if narrator is currently "typing"
-        self.current_typing_thread = None  # Track current typing thread
-        self.typing_position = None  # Track where typing starts
+        # Window configuration with LOTR theme
+        self.root.title("The Tale of " + character_data['name'])
+        self.root.geometry("700x600")
+        self.root.resizable(True, True)
+        self.root.configure(bg="#1c1c1c")  # Dark background
+
+        # Set up LOTR fonts
+        self.title_font = ("Cinzel", 16, "bold")
+        self.header_font = ("Cinzel", 12, "bold")
+        self.body_font = ("Georgia", 11)
+        self.input_font = ("Georgia", 10)
+
+        # Title label
+        title_label = tk.Label(
+            root,
+            text="The Chronicles of " + character_data['name'],
+            font=self.title_font,
+            bg="#1c1c1c",
+            fg="#d4af37",
+            pady=10
+        )
+        title_label.grid(row=0, column=0, sticky="ew")
+
+        # Toggle and state variables
+        self.tts_enabled = tk.BooleanVar(value=False)
+        self.is_typing = False
+        self.current_typing_thread = None
+        self.typing_position = None
+        self.fight_counter = 0  # For increasing stats
 
         # Configure grid layout
         self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
-        self.root.rowconfigure(1, weight=0)
-
-        # Create and configure fonts
-        self.response_font = ("Arial", 11)
-        self.input_font = ("Arial", 10)
-
-        self.fight_counter = 0 #For increasing stats
+        self.root.rowconfigure(1, weight=1)  # Main content area
+        self.root.rowconfigure(2, weight=0)  # Input area
 
         # Create narrator response section
         self.create_response_section()
@@ -36,10 +53,11 @@ class ChatApplication:
         # Create user input section
         self.create_input_section()
 
-        # Sample initial message
+        # Sample initial message with LOTR flavor
         welcome_msg = (
-            f"Welcome {character_data['name']}! I'm your narrator.\n"
-            f"We're beginning your story about: {character_data['story_prompt'][:500]}..."
+            f"Hail, {character_data['name']}! I am the chronicler of your tale.\n"
+            f"Your story begins thus: {character_data['story_prompt'][:500]}...\n"
+            f"May the stars guide your path."
         )
         self.display_narrator_response(welcome_msg, skip_typing=True)
 
@@ -47,60 +65,117 @@ class ChatApplication:
         self.narrator = Narrator()
         self.narrator.add_character_data(character_data)
 
+        # Install exception handler
+        threading.excepthook = self.thread_exception_handler
+
+    def thread_exception_handler(self, args):
+        """Handle uncaught exceptions in threads"""
+        print(f"Thread exception: {args.exc_type.__name__}: {args.exc_value}")
+        # Don't crash on Tkinter main loop errors
+        if "main loop" in str(args.exc_value):
+            return
+
     def create_response_section(self):
-        # Response frame
-        response_frame = tk.LabelFrame(self.root, text="Narrator Responses", padx=10, pady=10)
-        response_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        # Response frame with LOTR styling
+        response_frame = tk.LabelFrame(
+            self.root,
+            text="Chronicles of the Quest",
+            font=self.header_font,
+            bg="#1c1c1c",
+            fg="#d4af37",
+            relief="ridge",
+            bd=4
+        )
+        response_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         response_frame.columnconfigure(0, weight=1)
         response_frame.rowconfigure(0, weight=1)
 
-        # Scrolled Text widget for responses
+        # Scrolled Text widget for responses with parchment-like appearance
         self.response_area = scrolledtext.ScrolledText(
             response_frame,
             wrap=tk.WORD,
-            font=self.response_font,
+            font=self.body_font,
             state='disabled',
-            padx=10,
-            pady=10,
-            bg='#f0f0f0'
+            padx=15,
+            pady=15,
+            bg="#2a2a2a",
+            fg="#e6d5a8",
+            insertbackground="#d4af37",
+            relief="sunken",
+            bd=3
         )
         self.response_area.grid(row=0, column=0, sticky="nsew")
 
         # Configure tags for different message types
-        self.response_area.tag_configure('narrator', foreground='blue', lmargin1=10, lmargin2=10, rmargin=10)
-        self.response_area.tag_configure('user', foreground='green', lmargin1=10, lmargin2=10, rmargin=10)
-        self.response_area.tag_configure('typing', foreground='darkblue', font=('Arial', 11, 'bold'))
+        self.response_area.tag_configure(
+            'narrator',
+            foreground="#d4af37",
+            font=("Cinzel", 11, "italic"),
+            lmargin1=15,
+            lmargin2=15,
+            rmargin=15
+        )
+        self.response_area.tag_configure(
+            'user',
+            foreground="#8da1a1",
+            font=("Georgia", 11),
+            lmargin1=15,
+            lmargin2=15,
+            rmargin=15
+        )
+        self.response_area.tag_configure(
+            'typing',
+            foreground="#ffcc5c",
+            font=("Cinzel", 11, "bold italic")
+        )
 
     def create_input_section(self):
-        # Input frame
-        input_frame = tk.Frame(self.root)
-        input_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        # Input frame with dark background
+        input_frame = tk.Frame(self.root, bg="#1c1c1c")
+        input_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
 
-        # Prompt label
-        tk.Label(input_frame, text="Your Prompt:", font=self.input_font).grid(row=0, column=0, sticky="w")
+        # Prompt label with LOTR styling
+        tk.Label(
+            input_frame,
+            text="Speak, traveler (use @ for commands like @stats):",
+            font=self.header_font,
+            bg="#1c1c1c",
+            fg="#8da1a1"
+        ).grid(row=0, column=0, sticky="w")
 
-        # Text widget for user input (multi-line)
+        # Text widget for user input with medieval styling
         self.user_input = tk.Text(
             input_frame,
             height=4,
             wrap=tk.WORD,
             font=self.input_font,
-            padx=10,
-            pady=10
+            padx=12,
+            pady=12,
+            bg="#3a3a3a",
+            fg="#f0e6d2",
+            insertbackground="#d4af37",
+            relief="groove",
+            bd=3
         )
-        self.user_input.grid(row=1, column=0, sticky="ew", pady=(5, 0))
+        self.user_input.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         self.user_input.focus_set()
 
-        # Submit button
+        # Submit button styled as ancient scroll/button
         self.submit_btn = tk.Button(
             input_frame,
-            text="Send to Narrator",
+            text="Send to the Narrator",
             command=self.process_input,
-            bg='#4CAF50',
-            fg='white',
-            font=self.input_font
+            bg="#5d4c2e",
+            fg="#f0e6d2",
+            activebackground="#8b7355",
+            activeforeground="#ffffff",
+            font=("Cinzel", 10, "bold"),
+            relief="raised",
+            bd=3,
+            padx=20,
+            pady=6
         )
-        self.submit_btn.grid(row=2, column=0, sticky="e", pady=(10, 0))
+        self.submit_btn.grid(row=2, column=0, sticky="e", pady=(12, 0))
 
         # Bind Enter key to submit (with Shift+Enter for new line)
         self.user_input.bind('<Return>', self._handle_return_key)
@@ -232,33 +307,59 @@ class ChatApplication:
     def _generate_and_display_response(self, user_text):
         """Generate response and display it with typewriter effect"""
         attributes_list = ["dexterity", "strength", "luck", "charisma", "intelligence"]
+
         try:
-            if "stats" in user_text.lower() or "attributes" in user_text.lower():
-                response = self.get_stats()
-                self.root.after(0, lambda: self.display_narrator_response(response))
-            elif any(attribute in user_text.lower() for attribute in attributes_list):
-                response = self.handle_attribute_battle(user_text, attributes_list)
-                self.root.after(0, lambda: self.display_narrator_response(response))
-            #Introduce a 'convene+character' option that allows the user to talk to specific characters using dialogpt.
+            # Check if Tkinter main loop is still running
+            if not hasattr(self.root, 'tk') or not self.root.winfo_exists():
+                return
+
+            # Check for @ commands
+            if user_text.startswith("@"):
+                command = user_text[1:].lower().strip()
+
+                # @stats command
+                if command == "stats" or command == "attributes":
+                    response = self.get_stats()
+                    # Use safe wrapper
+                    if self.root.winfo_exists():
+                        self.root.after(0, lambda: self.display_narrator_response(response))
+
+                # @attribute battle commands
+                elif any(attribute in command for attribute in attributes_list):
+                    response = self.handle_attribute_battle(command, attributes_list)
+                    if self.root.winfo_exists():
+                        self.root.after(0, lambda: self.display_narrator_response(response))
+
+                # Unknown @ command
+                else:
+                    response = f"I do not understand the command '@{command}'. Try '@stats' or use an attribute like '@strength'."
+                    if self.root.winfo_exists():
+                        self.root.after(0, lambda: self.display_narrator_response(response))
+
+            # Normal chat (without @ prefix)
             else:
                 # Generate narrator response
                 response = self.narrator.generate_response(user_text)
+                if self.root.winfo_exists():
+                    self.root.after(0, lambda: self.display_narrator_response(response))
 
-                # Display with typewriter effect
-                self.root.after(0, lambda: self.display_narrator_response(response))
+                    # Start TTS if enabled
+                    if self.tts_enabled.get() and self.root.winfo_exists():
+                        self.narrator.speak(response)
 
-            # Start TTS if enabled
-            if self.tts_enabled.get():
-                self.narrator.speak(response)
-
+        except RuntimeError as e:
+            if "main loop" not in str(e):  # Only log if it's not the expected error
+                print(f"Runtime error: {e}")
+            return  # Silently ignore main loop errors
         except Exception as e:
             # Handle any errors during response generation
             error_msg = f"I apologize, but I encountered an error: {str(e)}"
-            self.root.after(0, lambda: self.display_narrator_response(error_msg, skip_typing=True))
-
+            if self.root.winfo_exists():
+                self.root.after(0, lambda: self.display_narrator_response(error_msg, skip_typing=True))
         finally:
-            # Re-enable input
-            self.root.after(0, self._enable_input)
+            # Re-enable input if window still exists
+            if self.root.winfo_exists():
+                self.root.after(0, self._enable_input)
 
     def get_stats(self):
         stats = [f"Character: {self.character_data['name']}", "Attributes:"]
@@ -266,22 +367,22 @@ class ChatApplication:
             stats.append(f"    {attribute}:{value}")
         return "\n".join(stats)
 
-    def handle_attribute_battle(self, user_text, attributes_list):
+    def handle_attribute_battle(self, command, attributes_list):
         self.fight_counter += 1
         print(self.fight_counter)
         print("attribute battle triggered...")
-        user_text = user_text.lower()
+
         mentioned_attributes = []
 
         for attribute in attributes_list:
-            if attribute in user_text:
+            if attribute in command:
                 mentioned_attributes.append(attribute)
         character_attributes = self.character_data['attributes']
-        #For levelling up mechanic
-        if self.fight_counter % random.randint(3,7) == 0:
+        # For levelling up mechanic
+        if self.fight_counter % random.randint(2, 8) == 0:
             attribute_upgrade = random.choice(attributes_list)
-            value = character_attributes.get(attribute_upgrade,0)
-            self.character_data[attribute_upgrade] = value+1
+            value = character_attributes.get(attribute_upgrade, 0)
+            self.character_data[attribute_upgrade] = value + 1
 
             level_up = f"Your {attribute_upgrade} has increased by 1 through sheer prowess..."
         else:
@@ -308,7 +409,6 @@ class ChatApplication:
             if level_up:
                 response.append(level_up)
             return response
-
 
     def _enable_input(self):
         """Re-enable user input after response is complete"""
