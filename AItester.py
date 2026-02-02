@@ -61,8 +61,8 @@ def generate_response(prompt, max_length=150): #Max_length varies for device use
                 num_return_sequences=1,
                 pad_token_id=tokenizer.eos_token_id,
                 do_sample=True,
-                temperature=0.8,
-                #repetition_penalty=1.1,
+                temperature=1.0,
+                repetition_penalty=1.1, #just so the narrator doesn't keep repeating himself
             )
 
         response = tokenizer.decode(output[0], skip_special_tokens=True)

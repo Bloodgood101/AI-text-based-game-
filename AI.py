@@ -125,7 +125,8 @@ class Narrator:
 
     def _init_logging(self):
         with open(self.log_file, 'a', encoding='utf-8') as f:
-            f.write(f"\n{'=' * 50}\n")
+            f.truncate(0) #clears file before use
+            f.seek(0) #must move cursor to start of the file as it can cause errors
             f.write(f"New Game Session - {datetime.datetime.now()}\n")
             f.write(f"{'=' * 50}\n")
 
@@ -137,16 +138,10 @@ class Narrator:
 
     def create_system_prompt(self):
         return """
-        Think of yourself as a dungeon master for the user. From all necessary character data fetched and stored in this file
-        you must design an adventure for the user, based on all gathered facts, stats and data provided in the add_character_data() 
-        method. You can use the stor_history to understand the direction, and history, of where the story is going. You must not 
-        stop narrating until you reach a point where something happens to the user or the user has to make a decision. 
-        Although the idea of this program is that the user has full creative control, you must push them to stay on the 
-        story's trail so the story can be completed. However, do not provide the user with options of what to do next. 
-        The character can do attribute battles, provided in self.attributes to influence story outcomes and outcomes of 
-        actions, use the outcome of these battles to determine the next step. Be creative with descriptions of 
-        everything, you are a narrator and you are painting the story, but progress the story through the player's 
-        choices and actions. 
+        Use only the information you've been fed, and using only the information provided, give the user a story, 
+        this is everything that is passed through the character_creation_log.json and gameLog.txt file. Think of 
+        yourself as a narrator or storyteller, weaving a story through the user's decisions and actions, until you reach 
+        a reasonable end. 
         """
 
     def generate_response(self, prompt):

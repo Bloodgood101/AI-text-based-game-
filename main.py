@@ -502,7 +502,9 @@ def process_prompt(prompt_text, topic, character_data, window):
     }
 
     try:
-        with open("character_creation_log.json", "a", encoding="utf-8") as f:
+        with open("character_creation_log.json", "w", encoding="utf-8") as f:
+            f.truncate(0) #did the same for the gameLog.txt need to clear data for each playthrough for training data
+            f.seek(0)
             f.write(json.dumps(log_data, indent=2) + "\n")
     except Exception as e:
         print(f"Error saving log: {e}")

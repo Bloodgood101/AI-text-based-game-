@@ -42,6 +42,9 @@ class ChatApplication:
         self.typing_position = None
         self.fight_counter = 0  # For increasing stats
 
+        # Current interaction type
+        self.current_interaction_type = "speak"  # Default: speak
+
         # Configure grid layout
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(1, weight=1)  # Main content area
@@ -52,6 +55,9 @@ class ChatApplication:
 
         # Create user input section
         self.create_input_section()
+
+        # Create interaction type selector (speak, do, action)
+        self.create_interaction_selector()
 
         # Sample initial message with LOTR flavor
         welcome_msg = (
@@ -129,6 +135,137 @@ class ChatApplication:
             font=("Cinzel", 11, "bold italic")
         )
 
+    def create_interaction_selector(self):
+        """Create buttons for selecting interaction type"""
+        interaction_frame = tk.LabelFrame(
+            self.root,
+            text="Choose Your Action",
+            font=self.header_font,
+            bg="#1c1c1c",
+            fg="#d4af37",
+            relief="ridge",
+            bd=4,
+            padx=10,
+            pady=10
+        )
+        interaction_frame.grid(row=1, column=1, sticky="nsew", padx=(0, 10), pady=(0, 10))
+
+        # Interaction type buttons
+        self.speak_btn = tk.Radiobutton(
+            interaction_frame,
+            text="Speak",
+            variable=tk.StringVar(value="speak"),  # Will be set properly below
+            value="speak",
+            command=lambda: self.set_interaction_type("speak"),
+            bg="#2a4d2a",
+            fg="#f0e6d2",
+            activebackground="#3a6d3a",
+            activeforeground="#ffffff",
+            selectcolor="#1c1c1c",
+            font=("Cinzel", 10, "bold"),
+            indicatoron=0,
+            width=15,
+            height=2,
+            relief="raised",
+            bd=3
+        )
+        self.speak_btn.pack(pady=5, fill='x')
+
+        self.do_btn = tk.Radiobutton(
+            interaction_frame,
+            text="Do",
+            variable=tk.StringVar(value="do"),
+            value="do",
+            command=lambda: self.set_interaction_type("do"),
+            bg="#4d2a2a",
+            fg="#f0e6d2",
+            activebackground="#6d3a3a",
+            activeforeground="#ffffff",
+            selectcolor="#1c1c1c",
+            font=("Cinzel", 10, "bold"),
+            indicatoron=0,
+            width=15,
+            height=2,
+            relief="raised",
+            bd=3
+        )
+        self.do_btn.pack(pady=5, fill='x')
+
+        self.action_btn = tk.Radiobutton(
+            interaction_frame,
+            text="Action",
+            variable=tk.StringVar(value="action"),
+            value="action",
+            command=lambda: self.set_interaction_type("action"),
+            bg="#2a2a4d",
+            fg="#f0e6d2",
+            activebackground="#3a3a6d",
+            activeforeground="#ffffff",
+            selectcolor="#1c1c1c",
+            font=("Cinzel", 10, "bold"),
+            indicatoron=0,
+            width=15,
+            height=2,
+            relief="raised",
+            bd=3
+        )
+        self.action_btn.pack(pady=5, fill='x')
+
+        # Stats button
+        self.stats_btn = tk.Button(
+            interaction_frame,
+            text="📊 Stats",
+            command=self.show_stats,
+            bg="#5d4c2e",
+            fg="#f0e6d2",
+            activebackground="#8b7355",
+            activeforeground="#ffffff",
+            font=("Cinzel", 10, "bold"),
+            relief="raised",
+            bd=3,
+            width=15,
+            height=2
+        )
+        self.stats_btn.pack(pady=20, fill='x')
+
+        # Selected interaction indicator
+        self.interaction_label = tk.Label(
+            interaction_frame,
+            text="Current: Speak",
+            font=("Georgia", 14, "bold"),
+            bg="#1c1c1c",
+            fg="#d4af37",
+            pady=5
+        )
+        self.interaction_label.pack(fill='x')
+
+        # Set initial selection
+        self.set_interaction_type("speak")
+
+    def set_interaction_type(self, interaction_type):
+        """Set the current interaction type"""
+        self.current_interaction_type = interaction_type
+
+        # Update UI to show current selection
+        self.interaction_label.config(text=f"Current: {interaction_type.capitalize()}")
+
+        # Update button states (visual feedback)
+        for btn in [self.speak_btn, self.do_btn, self.action_btn]:
+            btn.config(relief="raised")
+
+        if interaction_type == "speak":
+            self.speak_btn.config(relief="sunken")
+            self.user_input.delete("1.0", tk.END)
+            self.user_input.insert("1.0", "What do you say? ")
+        elif interaction_type == "do":
+            self.do_btn.config(relief="sunken")
+            self.user_input.delete("1.0", tk.END)
+            self.user_input.insert("1.0", "What do you do? ")
+        elif interaction_type == "action":
+            self.action_btn.config(relief="sunken")
+            self.user_input.delete("1.0", tk.END)
+            self.user_input.insert("1.0", "Which attribute do you use? ")
+
     def create_input_section(self):
         # Input frame with dark background
         input_frame = tk.Frame(self.root, bg="#1c1c1c")
@@ -137,7 +274,7 @@ class ChatApplication:
         # Prompt label with LOTR styling
         tk.Label(
             input_frame,
-            text="Speak, traveler (use @ for commands like @stats):",
+            text="Choose, traveler:",
             font=self.header_font,
             bg="#1c1c1c",
             fg="#8da1a1"
@@ -286,25 +423,29 @@ class ChatApplication:
         # Clear input box immediately
         self.user_input.delete("1.0", tk.END)
 
-        if not user_text:
+        if not user_text or user_text in ["What do you say? ", "What do you do? ", "Which attribute do you use? "]:
             return
 
         # Disable input while processing
         self.submit_btn.config(state='disabled')
         self.user_input.config(state='disabled')
 
-        # Display user message in response area
+        # Display user message in response area with interaction type prefix
+        interaction_prefix = f"[{self.current_interaction_type.upper()}] "
         self.response_area.config(state='normal')
-        self.response_area.insert(tk.END, f"You: " + user_text + "\n", 'user')
+        self.response_area.insert(tk.END, f"You {interaction_prefix}: " + user_text + "\n", 'user')
         self.response_area.config(state='disabled')
         self.response_area.see(tk.END)
 
         # Process the input and generate narrator response in a separate thread
-        processing_thread = threading.Thread(target=self._generate_and_display_response, args=(user_text,))
+        processing_thread = threading.Thread(
+            target=self._generate_and_display_response,
+            args=(user_text, self.current_interaction_type)
+        )
         processing_thread.daemon = True
         processing_thread.start()
 
-    def _generate_and_display_response(self, user_text):
+    def _generate_and_display_response(self, user_text, interaction_type):
         """Generate response and display it with typewriter effect"""
         attributes_list = ["dexterity", "strength", "luck", "charisma", "intelligence"]
 
@@ -313,39 +454,28 @@ class ChatApplication:
             if not hasattr(self.root, 'tk') or not self.root.winfo_exists():
                 return
 
-            # Check for @ commands
-            if user_text.startswith("@"):
-                command = user_text[1:].lower().strip()
-
-                # @stats command
-                if command == "stats" or command == "attributes":
-                    response = self.get_stats()
-                    # Use safe wrapper
-                    if self.root.winfo_exists():
-                        self.root.after(0, lambda: self.display_narrator_response(response))
-
-                # @attribute battle commands
-                elif any(attribute in command for attribute in attributes_list):
-                    response = self.handle_attribute_battle(command, attributes_list)
-                    if self.root.winfo_exists():
-                        self.root.after(0, lambda: self.display_narrator_response(response))
-
-                # Unknown @ command
-                else:
-                    response = f"I do not understand the command '@{command}'. Try '@stats' or use an attribute like '@strength'."
-                    if self.root.winfo_exists():
-                        self.root.after(0, lambda: self.display_narrator_response(response))
-
-            # Normal chat (without @ prefix)
-            else:
-                # Generate narrator response
-                response = self.narrator.generate_response(user_text)
+            # Handle based on interaction type
+            if interaction_type == "speak":
+                # Normal chat - generate narrator response for dialogue
+                response = self.narrator.generate_response(f"[SPEAK] {user_text}")
                 if self.root.winfo_exists():
                     self.root.after(0, lambda: self.display_narrator_response(response))
 
-                    # Start TTS if enabled
-                    if self.tts_enabled.get() and self.root.winfo_exists():
-                        self.narrator.speak(response)
+            elif interaction_type == "do":
+                # Action description - treat as physical action
+                response = self.narrator.generate_response(f"[DO ACTION] {user_text}")
+                if self.root.winfo_exists():
+                    self.root.after(0, lambda: self.display_narrator_response(response))
+
+            elif interaction_type == "action":
+                # Attribute-based action - similar to old @attribute system
+                response = self.handle_attribute_action(user_text, attributes_list)
+                if self.root.winfo_exists():
+                    self.root.after(0, lambda: self.display_narrator_response(response))
+
+            # Start TTS if enabled
+            if self.tts_enabled.get() and self.root.winfo_exists() and interaction_type != "action":
+                self.narrator.speak(response)
 
         except RuntimeError as e:
             if "main loop" not in str(e):  # Only log if it's not the expected error
@@ -361,57 +491,86 @@ class ChatApplication:
             if self.root.winfo_exists():
                 self.root.after(0, self._enable_input)
 
+    def show_stats(self):
+        """Display character stats"""
+        response = self.get_stats()
+        self.display_narrator_response(response, skip_typing=True)
+
     def get_stats(self):
         stats = [f"Character: {self.character_data['name']}", "Attributes:"]
         for attribute, value in self.character_data['attributes'].items():
-            stats.append(f"    {attribute}:{value}")
+            stats.append(f"    {attribute}: {value}")
         return "\n".join(stats)
 
-    def handle_attribute_battle(self, command, attributes_list):
+    def handle_attribute_action(self, user_text, attributes_list):
+        """Handle attribute-based actions (replaces @attribute commands)"""
         self.fight_counter += 1
-        print(self.fight_counter)
-        print("attribute battle triggered...")
+        print(f"Attribute action triggered... (Counter: {self.fight_counter})")
 
         mentioned_attributes = []
 
+        # Find which attributes are mentioned in the user's text
         for attribute in attributes_list:
-            if attribute in command:
+            if attribute.lower() in user_text.lower():
                 mentioned_attributes.append(attribute)
-        character_attributes = self.character_data['attributes']
-        # For levelling up mechanic
-        if self.fight_counter % random.randint(2, 8) == 0:
-            attribute_upgrade = random.choice(attributes_list)
-            value = character_attributes.get(attribute_upgrade, 0)
-            self.character_data[attribute_upgrade] = value + 1
 
-            level_up = f"Your {attribute_upgrade} has increased by 1 through sheer prowess..."
-        else:
-            level_up = ""
+        character_attributes = self.character_data['attributes']
+
+        # For levelling up mechanic
+        level_up = ""
+        if self.fight_counter % random.randint(2, 8) == 0 and mentioned_attributes:
+            attribute_upgrade = random.choice(mentioned_attributes)
+            value = character_attributes.get(attribute_upgrade, 0)
+            self.character_data['attributes'][attribute_upgrade] = value + 1
+            level_up = f"\nYour {attribute_upgrade} has increased by 1 through sheer prowess!"
 
         if mentioned_attributes:
-            response = [f"You have decided to use {mentioned_attributes} to solve this problem...\n"]
+            response = f"You decide to use your {', '.join(mentioned_attributes)} to {user_text.lower()}...\n"
+
+            # Calculate your score
             score = 0
             for attribute in mentioned_attributes:
                 attribute_value = character_attributes.get(attribute, 0)
-                print(f"Your attribute score is: {attribute_value}")
                 score += attribute_value
+
+            # Calculate enemy score
             enemy_score = 0
             for i in range(len(mentioned_attributes)):
                 enemy_score += random.randint(1, 10)
-                print(f"Enemy score is: {enemy_score}")
 
+            # Determine outcome
             if score >= enemy_score:
-                response.append(f"Your {mentioned_attributes} outclassed the enemy!\n")
-                response.append(f"\n{score} > {enemy_score}\n")
+                response += f"\nYour {', '.join(mentioned_attributes)} (score: {score}) outclass the challenge (score: {enemy_score})!\n"
+                outcome = "success"
             else:
-                response.append(f"Your {mentioned_attributes} can not match up against this monster...\n")
-                response.append(f"\n{score} < {enemy_score}\n")
+                response += f"\nYour {', '.join(mentioned_attributes)} (score: {score}) cannot match up against this challenge (score: {enemy_score})...\n"
+                outcome = "failure"
+
+            # Add flavor text
+            if outcome == "success":
+                response += f"\nWith a mighty effort, you succeed in {user_text.lower()}!"
+            else:
+                response += f"\nDespite your best efforts, you fail to {user_text.lower()}."
+
+            # Add level up if applicable
             if level_up:
-                response.append(level_up)
+                response += level_up
+
             return response
+        else:
+            # No attributes mentioned
+            return f"You attempt to {user_text.lower()}, but without focusing on any specific attribute, your efforts are unfocused. Try mentioning an attribute like 'strength', 'dexterity', etc."
 
     def _enable_input(self):
         """Re-enable user input after response is complete"""
         self.submit_btn.config(state='normal')
         self.user_input.config(state='normal')
         self.user_input.focus_set()
+
+        # Reset input prompt based on current interaction type
+        if self.current_interaction_type == "speak":
+            self.user_input.insert("1.0", "What do you say? ")
+        elif self.current_interaction_type == "do":
+            self.user_input.insert("1.0", "What do you do? ")
+        elif self.current_interaction_type == "action":
+            self.user_input.insert("1.0", "Which attribute do you use? ")
