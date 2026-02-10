@@ -1,1 +1,3 @@
 This is a game where you create your own story, and is based on your imagination. I have engineered an LLM to act as a narrator to your adventures throwing you sidequests and other trials and tribulations. You also have attributes that you can use to guide you out of situations. But, the essence of this game is to feed into your imagination and forge entertaining stories through that.  
+If you wish to use this you also need to download the mythomax model I currently use and store it in a new folder called models - in the same folder as the game files. 
+Link: https://huggingface.co/TheBloke/MythoMax-L2-13B-GGUF/blob/main/mythomax-l2-13b.Q4_K_M.gguf
