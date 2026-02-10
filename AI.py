@@ -45,14 +45,18 @@ class Narrator:
         self.inventory = [] #to implement later
         self.setting = None
 
+        self.first_response = True #this is for system_prompt issues
+
         # Initialize LLM
         self.llm = Llama(
-            model_path="./models/llama-2-7b-chat.Q4_0.gguf",
-            n_ctx=4096,
-            n_batch=512,
-            n_gpu_layers=1,
+            model_path="./models/mythomax-l2-13b.Q4_K_M.gguf",
+            n_ctx=4096, #longer context use 8192
+            n_batch=192, #for bigger LLMs use lower n_batch
+            n_gpu_layers=28, #using -1 causes an out of memory error for some models, so 28 is apparently the next-most optimum for this model
             verbose=False,
             use_mlock=True,  # uses Metal for Apple
+            n_threads=6, #Mac usually has between 8-10 cores so 6 is an ok value
+            seed=1337, #seeds are for consistency
         )
 
         self.story_history = []
@@ -141,42 +145,68 @@ class Narrator:
         Use only the information you've been fed, and using only the information provided, give the user a story, 
         this is everything that is passed through the character_creation_log.json and gameLog.txt file. Think of 
         yourself as a narrator or storyteller, weaving a story through the user's decisions and actions, until you reach 
-        a reasonable end. 
+        a reasonable end. Be descriptive when describing new places and situations, you are also world-building for the
+        user. Whenever a potential decision or action appears in your storytelling make sure to stop so the user can decide 
+        what the next move should be. 
+        When the user engages in attribute-based actions (strength, dexterity, luck, charisma, intelligence),
+        incorporate the outcome into the ongoing narrative. Continue the story naturally based on whether
+        the action succeeded or failed, and consider any attribute improvements that may have occurred.
+        Use the character's attributes and the current story context to create compelling narrative responses.
+        Always advance the story forward, building upon previous events and character development.
         """
 
     def generate_response(self, prompt):
-        # Build context from recent history
-        recent_context = "\n".join(
-            self.story_history[-10:]) if self.story_history else self.intro
+        #Check if this is the first response
+        if self.first_response:
+            #For the first response add all necessary data, but only for the first time
+            system_prompt = self.create_system_prompt()
+            #Include character intro too just in case
+            context = f"{system_prompt}\n\n{self.intro if self.intro else ''}"
+            self.first_response = False
+        else:
+            #context will be story_history
+            context = ""
 
-        system_prompt = self.create_system_prompt().format(
-            recent_context=recent_context
-        )
+        if self.story_history:
+            #get last ten messages from conversation for context
+            recent_messages = self.story_history[-10:]
+            history_context = "\n".join(recent_messages)
+            if context:
+                context = f"{context}\n\nRecent Story:\n{history_context}"
+            else:
+                context = history_context
 
-        full_prompt = f"{system_prompt}\n\nPlayer:{prompt}\nNarrator:"
-
-        if "stats" in prompt:
-            for i in self.attributes:
-                return i + "\n"
+        # Build the full prompt
+        if context:
+            full_prompt = f"{context}\n\nPlayer: {prompt}\nNarrator:"
+        else:
+            full_prompt = f"Player: {prompt}\nNarrator:"
 
         # Generate response
-        response = self.llm(
-            full_prompt,
-            max_tokens=512,
-            temperature=0.8,
-            top_p=0.9,
-            echo=False,
-            stop=[f"Player:", "###", "Narrator:", "\n\nPlayer", "You:", "User:"]  # simple stop mechanic
-        )
+        try:
+            response = self.llm(
+                full_prompt,
+                max_tokens=1024, #this is character limit it allows to output, still figuring out if it is needed
+                temperature=0.85, #I like between 0.8 and 0.9
+                top_p=0.95,
+                top_k = 40, #for better sampling
+                repeat_penalty=1.1, #stop repeating the same things over and over
+                echo=False,
+                stop=["Player:", "###", "Narrator:", "\n\nPlayer", "You:", "User:"]
+            )
 
-        narration = response['choices'][0]['text'].strip()
+            narration = response['choices'][0]['text'].strip()
+        except Exception as e:
+            print(f"Error generating response: {e}")
+            narration = "The story continues..."
 
+        # Log and update history
         self.log_interaction(prompt, narration)
-
-        self.story_history.append(f"User: {prompt}")
+        self.story_history.append(f"Player: {prompt}")
         self.story_history.append(f"Narrator: {narration}")
 
         return narration
+
 
     def add_character_data(self, character_data):
         self.name = character_data['name']

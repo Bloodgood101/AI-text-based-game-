@@ -59,6 +59,8 @@ class ChatApplication:
         # Create interaction type selector (speak, do, action)
         self.create_interaction_selector()
 
+        self.last_narrator_response = ""  # for empty inputs
+
         # Sample initial message with LOTR flavor
         welcome_msg = (
             f"Hail, {character_data['name']}! I am the chronicler of your tale.\n"
@@ -332,6 +334,7 @@ class ChatApplication:
 
     def display_narrator_response(self, message, skip_typing=False):
         """Display narrator response with optional typewriter effect"""
+        self.last_narrator_response = message #for null user input
         # Stop any ongoing typing animation
         if self.is_typing and self.current_typing_thread:
             self.is_typing = False
@@ -423,7 +426,26 @@ class ChatApplication:
         # Clear input box immediately
         self.user_input.delete("1.0", tk.END)
 
-        if not user_text or user_text in ["What do you say? ", "What do you do? ", "Which attribute do you use? "]:
+        #check if the user box is empty, or still has the default text
+        is_empty = not user_text or user_text in [
+            "What do you say? ",
+            "What do you do? ",
+            "Which attribute do you use? "
+        ]
+
+        if is_empty and self.last_narrator_response:
+            user_text = f"[CONTINUE] {self.last_narrator_response[:200]}..."
+
+            #Display notice in the main chat
+            self.response_area.config(state='normal')
+            self.response_area.insert(
+                tk.END,
+                "You: [CONTINUE]"
+            )
+            self.response_area.config(state='disabled')
+            self.response_area.see(tk.END)
+        elif is_empty:
+            #if there is no data help off just return nothing
             return
 
         # Disable input while processing
@@ -431,11 +453,12 @@ class ChatApplication:
         self.user_input.config(state='disabled')
 
         # Display user message in response area with interaction type prefix
-        interaction_prefix = f"[{self.current_interaction_type.upper()}] "
-        self.response_area.config(state='normal')
-        self.response_area.insert(tk.END, f"You {interaction_prefix}: " + user_text + "\n", 'user')
-        self.response_area.config(state='disabled')
-        self.response_area.see(tk.END)
+        if not is_empty:
+            interaction_prefix = f"[{self.current_interaction_type.upper()}] "
+            self.response_area.config(state='normal')
+            self.response_area.insert(tk.END, f"You {interaction_prefix}: " + user_text + "\n", 'user')
+            self.response_area.config(state='disabled')
+            self.response_area.see(tk.END)
 
         # Process the input and generate narrator response in a separate thread
         processing_thread = threading.Thread(
@@ -518,15 +541,19 @@ class ChatApplication:
 
         # For levelling up mechanic
         level_up = ""
+        level_up_attribute = None
         if self.fight_counter % random.randint(2, 8) == 0 and mentioned_attributes:
-            attribute_upgrade = random.choice(mentioned_attributes)
-            value = character_attributes.get(attribute_upgrade, 0)
-            self.character_data['attributes'][attribute_upgrade] = value + 1
-            level_up = f"\nYour {attribute_upgrade} has increased by 1 through sheer prowess!"
+            level_up_attribute = random.choice(mentioned_attributes)
+            value = character_attributes.get(level_up_attribute, 0)
+            self.character_data['attributes'][level_up_attribute] = value + 1
+            level_up = f"\nYour {level_up_attribute} has increased by 1 through sheer prowess!"
+
+        battle_result = ""
+        outcome = "neutral"
+        score = 0
+        enemy_score = 0
 
         if mentioned_attributes:
-            response = f"You decide to use your {', '.join(mentioned_attributes)} to {user_text.lower()}...\n"
-
             # Calculate your score
             score = 0
             for attribute in mentioned_attributes:
@@ -540,26 +567,42 @@ class ChatApplication:
 
             # Determine outcome
             if score >= enemy_score:
-                response += f"\nYour {', '.join(mentioned_attributes)} (score: {score}) outclass the challenge (score: {enemy_score})!\n"
+                battle_result = f"You used your {', '.join(mentioned_attributes)} (score: {score}) and outclassed the challenge (score: {enemy_score})!"
                 outcome = "success"
             else:
-                response += f"\nYour {', '.join(mentioned_attributes)} (score: {score}) cannot match up against this challenge (score: {enemy_score})...\n"
+                battle_result = f"You used your {', '.join(mentioned_attributes)} (score: {score}) but couldn't match up against this challenge (score: {enemy_score})..."
                 outcome = "failure"
 
             # Add flavor text
             if outcome == "success":
-                response += f"\nWith a mighty effort, you succeed in {user_text.lower()}!"
+                battle_result += f" You succeeded in {user_text.lower()}!"
             else:
-                response += f"\nDespite your best efforts, you fail to {user_text.lower()}."
+                battle_result += f" You failed to {user_text.lower()}."
 
             # Add level up if applicable
             if level_up:
-                response += level_up
+                battle_result += level_up
 
-            return response
+            # Now generate a story-based response from the narrator
+            # Pass the battle result and outcome to the narrator for story continuation
+            prompt_for_narrator = f"[ATTRIBUTE ACTION] I attempted to {user_text.lower()} using my {', '.join(mentioned_attributes)} attributes. {battle_result}"
+
+            # Get narrator's story response
+            narrator_response = self.narrator.generate_response(prompt_for_narrator)
+
+            # Combine the battle result with the narrator's story continuation
+            full_response = f"{battle_result}\n\n{narrator_response}"
+
+            return full_response
         else:
             # No attributes mentioned
-            return f"You attempt to {user_text.lower()}, but without focusing on any specific attribute, your efforts are unfocused. Try mentioning an attribute like 'strength', 'dexterity', etc."
+            battle_result = f"You attempt to {user_text.lower()}, but without focusing on any specific attribute, your efforts are unfocused. Try mentioning an attribute like 'strength', 'dexterity', etc."
+
+            # Still get narrator response for story continuity
+            prompt_for_narrator = f"[ATTRIBUTE ACTION] I attempted to {user_text.lower()} but my actions were unfocused without using specific attributes."
+            narrator_response = self.narrator.generate_response(prompt_for_narrator)
+
+            return f"{battle_result}\n\n{narrator_response}"
 
     def _enable_input(self):
         """Re-enable user input after response is complete"""

@@ -102,8 +102,8 @@ def create_main_window():
     root.mainloop()
 
 
-def check_model_status():
-    model_path = "./models/llama-2-7b-chat.Q4_0.gguf"
+def check_model_status(): #checks if model is present
+    model_path = "./models/mythomax-l2-13b.Q4_K_M.gguf"
     if os.path.exists(model_path):
         return "Seer: Ready to weave your fate"
     else:
